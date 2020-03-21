@@ -1,0 +1,117 @@
+#!/usr/bin/env tclsh
+
+package require Tk
+
+################################################################################
+# VARIABLES
+#
+namespace eval tSystemd {
+  array set units   {}
+  variable unitpath {}
+}
+
+################################################################################
+# PROCEDURES
+#
+proc displayUnits {} {
+  foreach {tab scope} {.tab1 --system .tab2 --user} {
+    set result [split [exec -ignorestderr systemctl $scope] "\n"]
+    foreach {start end} {0 0 end-6 end} {
+      set result [lreplace $result $start $end]
+    }
+    foreach n $result {
+      lappend tSystemd::units($tab) [lsearch -inline -glob $n *.*]
+    }
+  }
+}
+
+proc unitDetails {tab item} {
+  set scope [expr {$tab eq ".tab1" ? "--system" : "--user"}]
+  .txt configure -state normal
+  .txt replace 0.0 end [exec -ignorestderr \
+    systemctl $scope status -- $item]
+  .txt configure -state disabled
+  set tSystemd::unitpath [regexp -inline {/[[:print:]]+\.service} \
+    [.txt get 2.0 2.end]]
+}
+
+################################################################################
+# WIDGETS
+#
+proc createWidgets {} {
+  ttk::style configure flat.TLabelframe -relief flat
+
+  ttk::panedwindow .pw -orient vertical
+  ttk::notebook .nb -takefocus 0
+  ttk::notebook::enableTraversal .nb
+
+  foreach tabnum {.tab1 .tab2} {
+    array set tab [list \
+      {tab} "${tabnum}" {lst} "${tabnum}.lst" {lsc} "${tabnum}.lsc"\
+    ]
+    array set tSystemd::units [list $tab(tab) [list]]
+    ttk::labelframe $tab(tab) -text "\u2022 Units List:" -style flat.TLabelframe
+      tk::listbox $tab(lst) -highlightthickness 0 -relief sunken \
+        -listvariable tSystemd::units($tab(tab)) -yscrollcommand [list $tab(lsc) set]
+      ttk::scrollbar $tab(lsc) -orient vertical -command [list $tab(lst) yview]
+      grid $tab(lst) -in $tab(tab) -row 0 -column 0 -sticky nswe
+      grid $tab(lsc) -in $tab(tab) -row 0 -column 1 -sticky ns
+      grid rowconfigure    $tab(tab) $tab(lst) -weight 1
+      grid columnconfigure $tab(tab) $tab(lst) -weight 1
+  }
+
+  ttk::labelframe .lf -text "\u2022 Status:" -style flat.TLabelframe
+    tk::text .txt -highlightthickness 0 -wrap none -relief sunken \
+      -state disabled -takefocus 0 -xscrollcommand {.xsc set} \
+      -yscrollcommand {.ysc set}
+    ttk::scrollbar .ysc -orient vertical   -command {.txt yview}
+    ttk::scrollbar .xsc -orient horizontal -command {.txt xview}
+    grid .txt -in .lf -row 0 -column 0 -sticky nswe
+    grid .ysc -in .lf -row 0 -column 1 -sticky ns
+    grid .xsc -in .lf -row 1 -column 0 -sticky we
+    grid rowconfigure    .lf .txt -weight 1
+    grid columnconfigure .lf .txt -weight 1
+
+  .nb add .tab1 -text "System"
+  .nb add .tab2 -text "User"
+  .nb select .tab1
+  .pw add .nb -weight 1
+  .pw add .lf
+
+  ttk::frame .statusbar -borderwidth 1 -relief sunken
+    ttk::label .unitpath -anchor w -textvariable tSystemd::unitpath
+    ttk::sizegrip .sizegrip
+    grid .unitpath -in .statusbar -row 0 -column 0 -sticky we
+    grid .sizegrip -in .statusbar -row 0 -column 1 -sticky e
+    grid rowconfigure    .statusbar .unitpath -weight 1
+    grid columnconfigure .statusbar .unitpath -weight 1
+  grid .pw        -in . -row 0 -column 0 -sticky nswe
+  grid .statusbar -in . -row 1 -column 0 -sticky we
+  grid rowconfigure    . .pw -weight 1
+  grid columnconfigure . .pw -weight 1
+}
+
+################################################################################
+# BINDINGS
+#
+proc createBindings {} {
+  bind all <KP_Enter> {event generate %W <Return>}
+  bind all <Escape>   {exit}
+  bind all <q>        {exit}
+
+  foreach keysym {<Return> <Double-ButtonRelease-1>} {
+    bind Listbox $keysym {unitDetails [.nb select] [%W get active]}
+  }
+}
+
+################################################################################
+# MAIN PROGRAM
+#
+createWidgets
+createBindings
+displayUnits
+focus .tab1.lst
+
+wm title    . "tSystemd"
+wm minsize  . 550 500
+wm protocol . WM_DELETE_WINDOW {exit}
