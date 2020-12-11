@@ -39,7 +39,6 @@ proc unitDetails {tab item} {
 # WIDGETS
 #
 proc createWidgets {} {
-  ttk::style configure flat.TLabelframe -relief flat
 
   ttk::panedwindow .pw -orient vertical
   ttk::notebook .nb -takefocus 0
@@ -50,7 +49,7 @@ proc createWidgets {} {
       {tab} "${tabnum}" {lst} "${tabnum}.lst" {lsc} "${tabnum}.lsc"\
     ]
     array set tSystemd::units [list $tab(tab) [list]]
-    ttk::labelframe $tab(tab) -text "\u2022 Units List:" -style flat.TLabelframe
+    ttk::labelframe $tab(tab) -relief flat -text "\u2022 Units List:"
       tk::listbox $tab(lst) -highlightthickness 0 -relief sunken \
         -listvariable tSystemd::units($tab(tab)) -yscrollcommand [list $tab(lsc) set]
       ttk::scrollbar $tab(lsc) -orient vertical -command [list $tab(lst) yview]
@@ -60,7 +59,7 @@ proc createWidgets {} {
       grid columnconfigure $tab(tab) $tab(lst) -weight 1
   }
 
-  ttk::labelframe .lf -text "\u2022 Status:" -style flat.TLabelframe
+  ttk::labelframe .lf -relief flat -text "\u2022 Status:"
     tk::text .txt -highlightthickness 0 -wrap none -relief sunken \
       -state disabled -takefocus 0 -xscrollcommand {.xsc set} \
       -yscrollcommand {.ysc set}
